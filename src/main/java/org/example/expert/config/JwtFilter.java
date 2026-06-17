@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.expert.domain.common.dto.AuthUser;
 import org.example.expert.domain.user.enums.UserRole;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -31,6 +32,11 @@ public class JwtFilter extends OncePerRequestFilter {
 
         String bearerJwt = request.getHeader("Authorization");
 
+        if (request.getRequestURI().startsWith("/auth")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         if (bearerJwt == null) {
             // 토큰이 없는 경우 400을 반환합니다.
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "JWT 토큰이 필요합니다.");
@@ -47,16 +53,22 @@ public class JwtFilter extends OncePerRequestFilter {
                 return;
             }
 
+            Long userId = Long.parseLong(claims.getSubject());
+            String email = claims.get("email", String.class);
             UserRole userRole = UserRole.valueOf(claims.get("userRole", String.class));
+            String nickname = claims.get("nickname", String.class);
 
-            request.setAttribute("userId", Long.parseLong(claims.getSubject()));
-            request.setAttribute("email", claims.get("email"));
-            request.setAttribute("userRole", claims.get("userRole"));
+            request.setAttribute("userId", userId);
+            request.setAttribute("email", email);
+            request.setAttribute("userRole", userRole);
+            request.setAttribute("nickname", nickname);
+
+            AuthUser authUser = new AuthUser(userId, email, userRole, nickname);
 
             SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
-                    Long.parseLong(claims.getSubject()),
+                    authUser,
                     null,
-                    List.of(new SimpleGrantedAuthority(claims.get("userRole", String.class)))
+                    List.of(new SimpleGrantedAuthority(userRole.name()))
                 )
             );
 

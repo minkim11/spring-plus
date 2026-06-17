@@ -24,3 +24,6 @@ spring:
 jwt:
   secret:
     key: ${JWT_SECRET}
+server:
+  error:
+    include-message: always
